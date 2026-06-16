@@ -31,7 +31,7 @@ import browser from "webextension-polyfill";
 import store from "../../store";
 import { ProxyRequestType } from "../../types";
 import isRequestTypeProxied from "./isRequestTypeProxied";
-import { getProxyTimeoutMs } from "./proxyHealthCheck"; // Caveat 3: use validated getter, not bare constant
+import { getProxyTimeoutMs } from "./proxyHealthCheck";
 import { getProxyInfoFromUrl } from "./proxyInfo";
 import {
   passportHostRegex,
@@ -187,7 +187,7 @@ export function initFirefoxProxyRotation(): void {
 
   // ── onRequest: return proxy info for each matching request ────────────────
   browser.proxy.onRequest.addListener(
-    (details: Browser.Proxy.RequestDetails) => {
+    details => {
       if (!shouldProxyRequest(details.documentUrl ?? details.url)) {
         return { type: "direct" };
       }
@@ -217,8 +217,8 @@ export function initFirefoxProxyRotation(): void {
   );
 
   // ── onError: rotate immediately on any proxy connection failure ───────────
-  browser.proxy.onError.addListener((error: Error) => {
-    console.warn(`⚙️ [Firefox proxy rotation] Proxy error: ${error.message}`);
+  browser.proxy.onError.addListener(error => {
+    console.warn(`⚙️ [Firefox proxy rotation] Proxy error: ${error.details}`);
     rotateToNextProxy("Connection error");
   });
 

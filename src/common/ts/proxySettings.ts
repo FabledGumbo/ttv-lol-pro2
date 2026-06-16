@@ -18,7 +18,7 @@
 import store from "../../store";
 import { ProxyRequestType, ProxyType } from "../../types";
 import isRequestTypeProxied from "./isRequestTypeProxied";
-import { filterAliveProxies, getProxyTimeoutMs } from "./proxyHealthCheck"; // ← Caveat 3: use getter
+import { filterAliveProxies, getProxyTimeoutMs } from "./proxyHealthCheck";
 import { getProxyInfoFromUrl, getUrlFromProxyInfo } from "./proxyInfo";
 import {
   passportHostRegex,
@@ -36,6 +36,18 @@ import updateDnsResponses from "./updateDnsResponses";
  * updateProxySettings() falls back to the full configured proxy list.
  */
 let lastKnownAliveProxies: string[] = [];
+
+/**
+ * Proxies confirmed dead by the last health-check cycle.
+ * Kept as a module-level variable so State does not need to be modified.
+ * The popup / options page can read this via getDeadProxies().
+ */
+let deadProxies: string[] = [];
+
+/** Read-only accessor for the popup / options page. */
+export function getDeadProxies(): readonly string[] {
+  return deadProxies;
+}
 
 const PROXY_TYPE_MAP: Readonly<Record<ProxyType, string>> = Object.freeze({
   direct: "DIRECT",
@@ -146,10 +158,8 @@ function applyPacScript(
     console.log(
       `⚙️ Proxying requests through one of: ${proxyList.join(", ") || "<empty>"}`
     );
-    if (store.state.deadProxies.length > 0) {
-      console.warn(
-        `⚙️ Dead proxies excluded: ${store.state.deadProxies.join(", ")}`
-      );
+    if (deadProxies.length > 0) {
+      console.warn(`⚙️ Dead proxies excluded: ${deadProxies.join(", ")}`);
     }
   });
 }
@@ -159,9 +169,10 @@ function applyPacScript(
  *
  * On call it immediately writes the PAC using the module-level
  * `lastKnownAliveProxies` cache (populated on the previous probe cycle,
- * or the full proxy list on first run so the user is never left without a proxy).  It then kicks off a background probe;
- * when that resolves it rewrites the PAC with the fresh alive list and updates
- * the store — adding zero latency to startup or settings-save.
+ * or the full proxy list on first run so the user is never left without a
+ * proxy). It then kicks off a background probe; when that resolves it rewrites
+ * the PAC with the fresh alive list and updates the store — adding zero latency
+ * to startup or settings-save.
  *
  * @param requestFilter  Optional subset of request types to (re-)proxy.
  */
@@ -191,7 +202,7 @@ export function updateProxySettings(requestFilter?: ProxyRequestType[]): void {
 
   filterAliveProxies(allProxies).then(aliveProxies => {
     lastKnownAliveProxies = aliveProxies;
-    store.state.deadProxies = allProxies.filter(p => !aliveProxies.includes(p));
+    deadProxies = allProxies.filter(p => !aliveProxies.includes(p));
 
     // Rewrite PAC atomically — this also tears down the hold PAC that
     // filterAliveProxiesChromium left in place.
@@ -200,9 +211,7 @@ export function updateProxySettings(requestFilter?: ProxyRequestType[]): void {
     console.log(
       `⚙️ [proxyHealthCheck] Background probe complete. ` +
         `Alive: [${aliveProxies.join(", ")}]` +
-        (store.state.deadProxies.length > 0
-          ? `  Dead: [${store.state.deadProxies.join(", ")}]`
-          : "")
+        (deadProxies.length > 0 ? `  Dead: [${deadProxies.join(", ")}]` : "")
     );
   });
 }
