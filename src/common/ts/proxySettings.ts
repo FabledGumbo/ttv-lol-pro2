@@ -15,12 +15,11 @@
  * 5. Everything else is unchanged.
  */
 
-import browser from "webextension-polyfill";
 import store from "../../store";
 import { ProxyRequestType, ProxyType } from "../../types";
 import isRequestTypeProxied from "./isRequestTypeProxied";
-import { getProxyInfoFromUrl, getUrlFromProxyInfo } from "./proxyInfo";
 import { filterAliveProxies, getProxyTimeoutMs } from "./proxyHealthCheck"; // ← Caveat 3: use getter
+import { getProxyInfoFromUrl, getUrlFromProxyInfo } from "./proxyInfo";
 import {
   passportHostRegex,
   twitchGqlHostRegex,
@@ -148,7 +147,9 @@ function applyPacScript(
       `⚙️ Proxying requests through one of: ${proxyList.join(", ") || "<empty>"}`
     );
     if (store.state.deadProxies.length > 0) {
-      console.warn(`⚙️ Dead proxies excluded: ${store.state.deadProxies.join(", ")}`);
+      console.warn(
+        `⚙️ Dead proxies excluded: ${store.state.deadProxies.join(", ")}`
+      );
     }
   });
 }
@@ -174,9 +175,7 @@ export function updateProxySettings(requestFilter?: ProxyRequestType[]): void {
   // On first run, lastKnownAliveProxies is empty; fall back to the full list
   // so traffic is never blocked while the first probe is in progress.
   const cachedAlive =
-    lastKnownAliveProxies.length > 0
-      ? lastKnownAliveProxies
-      : allProxies;
+    lastKnownAliveProxies.length > 0 ? lastKnownAliveProxies : allProxies;
 
   applyPacScript(cachedAlive, requestFilter);
   store.state.chromiumProxyActive = true;

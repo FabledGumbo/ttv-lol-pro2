@@ -31,8 +31,8 @@ import browser from "webextension-polyfill";
 import store from "../../store";
 import { ProxyRequestType } from "../../types";
 import isRequestTypeProxied from "./isRequestTypeProxied";
-import { getProxyInfoFromUrl } from "./proxyInfo";
 import { getProxyTimeoutMs } from "./proxyHealthCheck"; // Caveat 3: use validated getter, not bare constant
+import { getProxyInfoFromUrl } from "./proxyInfo";
 import {
   passportHostRegex,
   twitchGqlHostRegex,
@@ -121,10 +121,11 @@ async function scheduleTimeoutCheck(): Promise<void> {
     }
   } catch (err: unknown) {
     clearTimeout(timer);
-    const isAbort =
-      err instanceof Error && err.name === "AbortError";
+    const isAbort = err instanceof Error && err.name === "AbortError";
     if (isAbort) {
-      rotateToNextProxy(`Proxy did not respond within ${getProxyTimeoutMs()} ms`);
+      rotateToNextProxy(
+        `Proxy did not respond within ${getProxyTimeoutMs()} ms`
+      );
     }
     // Non-abort errors (e.g. network down) are handled by onError below.
   } finally {
