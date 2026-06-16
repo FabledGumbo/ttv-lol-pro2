@@ -27,11 +27,12 @@
  * waiting for the browser's opaque retry window.
  */
 
+import browser from "webextension-polyfill";
 import store from "../../store";
 import { ProxyRequestType } from "../../types";
 import isRequestTypeProxied from "./isRequestTypeProxied";
-import { getProxyTimeoutMs } from "./proxyHealthCheck"; // Caveat 3: use validated getter, not bare constant
 import { getProxyInfoFromUrl } from "./proxyInfo";
+import { getProxyTimeoutMs } from "./proxyHealthCheck"; // Caveat 3: use validated getter, not bare constant
 import {
   passportHostRegex,
   twitchGqlHostRegex,
@@ -120,11 +121,10 @@ async function scheduleTimeoutCheck(): Promise<void> {
     }
   } catch (err: unknown) {
     clearTimeout(timer);
-    const isAbort = err instanceof Error && err.name === "AbortError";
+    const isAbort =
+      err instanceof Error && err.name === "AbortError";
     if (isAbort) {
-      rotateToNextProxy(
-        `Proxy did not respond within ${getProxyTimeoutMs()} ms`
-      );
+      rotateToNextProxy(`Proxy did not respond within ${getProxyTimeoutMs()} ms`);
     }
     // Non-abort errors (e.g. network down) are handled by onError below.
   } finally {
@@ -156,7 +156,10 @@ function shouldProxyRequest(host: string): boolean {
     customPassport: store.state.customPassportEnabled
       ? store.state.customPassport
       : null,
-    fullModeEnabled: !optimizedProxiesEnabled,
+    // Firefox path: isFlagged drives per-request proxy decisions.
+    // fullModeEnabled does not exist on the Firefox overload of
+    // isRequestTypeProxied — it is a Chromium-only PAC-script concept.
+    isFlagged: undefined,
   });
 }
 
@@ -183,7 +186,7 @@ export function initFirefoxProxyRotation(): void {
 
   // ── onRequest: return proxy info for each matching request ────────────────
   browser.proxy.onRequest.addListener(
-    details => {
+    (details: Browser.Proxy.RequestDetails) => {
       if (!shouldProxyRequest(details.documentUrl ?? details.url)) {
         return { type: "direct" };
       }
